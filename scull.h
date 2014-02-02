@@ -20,11 +20,11 @@ struct scull_qset {
 #endif
 
 #ifndef SCULL_QUANTUM_SIZE
-#define SCULL_QUANTUM_SIZE 40
+#define SCULL_QUANTUM_SIZE 5
 #endif
 
 #ifndef SCULL_QUANTUM_SET_SIZE
-#define SCULL_QUANTUM_SET_SIZE 100
+#define SCULL_QUANTUM_SET_SIZE 2
 #endif
 
 #ifndef SCULL_READ
