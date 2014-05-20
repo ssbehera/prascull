@@ -9,6 +9,7 @@
 #include <linux/cdev.h> // cdev structure
 
 #include <asm/uaccess.h> // copy_to_user and copy_from_user functions
+#include <linux/semaphore.h> // semaphore structure and function
 
 #include "scull.h"
 
@@ -87,8 +88,11 @@ int scull_open(struct inode *inode, struct file *filep)
 	printk(KERN_INFO "[%s] scull device [%d] opened\n", __FUNCTION__, iminor(inode)+1);
 
 	if ( (filep->f_flags & O_ACCMODE) == O_WRONLY ) {
+		if (down_interruptible(&dev->sem)) // Get the device access here
+			return -ERESTARTSYS;
 		printk(KERN_INFO "[%s] scull device [%d] opened for writing\n", __FUNCTION__, iminor(inode)+1);
 		scull_trim(dev);
+		up(&dev->sem); // Give up the access to others
 	}
 	else
 		printk(KERN_INFO "[%s] scull device [%d] opened for reading\n", __FUNCTION__, iminor(inode)+1);
@@ -110,6 +114,9 @@ ssize_t scull_read(struct file *filep, char __user *buff, size_t count, loff_t *
 	int size = qset * quantum;
 	int index, qset_index, quantum_index;
 	ssize_t retval = 0;
+
+	if (down_interruptible(&dev->sem)) // Get the device access here
+		return -ERESTARTSYS;
 
 	printk(KERN_INFO "[%s] Reading [%d] data from the file\n",__FUNCTION__,count);
 	printk(KERN_INFO "[%s] Current file position: [%ld]\n",__FUNCTION__,(long)*offp);
@@ -148,12 +155,14 @@ ssize_t scull_read(struct file *filep, char __user *buff, size_t count, loff_t *
 
 	printk(KERN_INFO "[%s] File position after reading: [%ld]\n",__FUNCTION__,(long) *offp);
 
+	up(&dev->sem); // Give up the access to others
 	return retval;
 	err:
 		if (*offp >= dev->size)
 			printk(KERN_INFO "[%s] Read Complete\n", __FUNCTION__);
 		else
 			printk(KERN_INFO "[%s] Error\n",__FUNCTION__);
+		up(&dev->sem); // Give up the access even when it goes bad
 		return retval;
 }
 
@@ -167,9 +176,12 @@ ssize_t scull_write(struct file *filep, const char __user *buff, size_t count, l
 	int index, qset_index, quantum_index;
 	ssize_t retval = -ENOMEM;
 
+	if (down_interruptible(&dev->sem)) // Get the device access here
+		return -ERESTARTSYS;
+
 	printk(KERN_INFO "[%s] Writing [%d] data into the file\n", __FUNCTION__, count);
 	printk(KERN_INFO "[%s] File position before writing: [%ld]\n", __FUNCTION__, (long)*offp);
-	
+
 	index = (long) *offp / size;
 	qset_index = ((long) *offp % size ) / quantum;
 	quantum_index = ((long) *offp % size) % quantum;
@@ -218,8 +230,12 @@ ssize_t scull_write(struct file *filep, const char __user *buff, size_t count, l
 
 	if (dev->size < *offp)
 		dev->size = *offp;
+
+	up(&dev->sem); // Give up the access to others
 	return retval;
+
 	err:
+		up(&dev->sem); // Give up the access even when it goes bad
 		printk(KERN_INFO "[%s] Error\n", __FUNCTION__);
 		return retval;
 }
@@ -293,6 +309,7 @@ static int scull_init(void)
 	for (i = 0; i < scull_nr_devs ; i++) {
 		my_dev[i].quantum = scull_quantum_size;
 		my_dev[i].qset = scull_quantum_qset_size;
+		sema_init(&my_dev[i].sem, 1);
 		scull_setup_cdev(&my_dev[i], i);
 		printk(KERN_INFO "[%s] device no. [%d] setup is complete\n", __FUNCTION__, i+1);
 	}

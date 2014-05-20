@@ -7,7 +7,8 @@ struct scull_dev {
 	int quantum; // each quantum size
 	int qset; // each quantum set size
 	unsigned long size; // amount of data stored in the device
-	struct cdev char_dev;
+	struct cdev char_dev; // char device structure
+	struct semaphore sem; // mutual exclusion semaphore
 };
 
 struct scull_qset {
