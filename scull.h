@@ -1,3 +1,7 @@
+#ifndef SCULLC_H
+#define SCULLC_H
+
+
 struct scull_dev {
 	struct scull_qset *data; // Pointer to first quantum set
 	int quantum; // each quantum size
@@ -33,4 +37,6 @@ struct scull_qset {
 
 #ifndef SCULL_WRITE
 #define SCULL_WRITE 1
+#endif
+
 #endif
