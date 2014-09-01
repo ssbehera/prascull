@@ -240,6 +240,21 @@ ssize_t scull_write(struct file *filep, const char __user *buff, size_t count, l
 		return retval;
 }
 
+long scull_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	int err = 0, tmp;
+	int retval = 0;
+
+	if (_IOC_TYPE(cmd) != SCULL_IOC_MAGIC) return -ENOTTY;
+	if (_IOC_NR(cmd) > SCULL_IOC_MAXNR) return -ENOTTY;
+
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok(VERIFY_WRITE, (void __user *) arg, _IOC_SIZE(cmd));
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok(VERIFY_READ, (void __user *) arg, _IOC_SIZE(cmd));
+	if (err) return -EFAULT;
+}
+
 struct file_operations scull_fops = 
 {
 	.owner = THIS_MODULE,
